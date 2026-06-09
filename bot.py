@@ -5,10 +5,44 @@ import sys
 from datetime import datetime
 from pyrogram import Client, filters
 from pyrogram.types import Message
+from threading import Thread
+from http.server import HTTPServer, BaseHTTPRequestHandler
+
+# =============== PORT WEB SERVER FOR RENDER ================
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/html')
+        self.end_headers()
+        self.wfile.write(b"""
+        <!DOCTYPE html>
+        <html>
+        <head><title>Spam Bot</title></head>
+        <body style="background: #1a1a2e; color: white; text-align: center; font-family: Arial;">
+            <h1>🔥 SPAM BOT IS RUNNING 🔥</h1>
+            <p>Bot is active and ready to spam!</p>
+            <p>Owner ID: 8722144519</p>
+            <p>Status: 🟢 ONLINE</p>
+        </body>
+        </html>
+        """)
+    
+    def log_message(self, format, *args):
+        pass  # Disable logging
+
+def run_web_server():
+    port = int(os.environ.get("PORT", 10000))
+    server = HTTPServer(("0.0.0.0", port), Handler)
+    print(f"🌐 Web server running on port {port}")
+    server.serve_forever()
+
+# Start web server in background thread
+web_thread = Thread(target=run_web_server, daemon=True)
+web_thread.start()
+print("✅ Web server thread started")
 
 # =============== FIX FOR EVENT LOOP ERROR ================
 if sys.version_info[0] == 3 and sys.version_info[1] >= 10:
-    import asyncio
     try:
         asyncio.get_running_loop()
     except RuntimeError:
@@ -248,6 +282,7 @@ if __name__ == "__main__":
     print(f"👑 Owner ID: {OWNER_ID}")
     print(f"⚡ Mode: ONLY OWNER CAN USE")
     print(f"💡 Feature: TAG with every message")
+    print(f"🌐 Port: {os.environ.get('PORT', 10000)}")
     print("=" * 50)
     
     app.run()
