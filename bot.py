@@ -1,9 +1,19 @@
 import asyncio
 import os
 import time
+import sys
 from datetime import datetime
 from pyrogram import Client, filters
 from pyrogram.types import Message
+
+# =============== FIX FOR EVENT LOOP ERROR ================
+if sys.version_info[0] == 3 and sys.version_info[1] >= 10:
+    import asyncio
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
 
 # =============== CONFIG - ENVIRONMENT VARIABLES ================
 API_ID = int(os.environ.get("API_ID", 39035274))
