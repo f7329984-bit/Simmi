@@ -1,3 +1,4 @@
+
 import asyncio
 import os
 import time
@@ -14,7 +15,6 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Content-type', 'text/html; charset=utf-8')
         self.end_headers()
-        # Simple HTML without special characters
         html = """
         <!DOCTYPE html>
         <html>
@@ -30,7 +30,7 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(html.encode('utf-8'))
     
     def log_message(self, format, *args):
-        pass  # Disable logging
+        pass
 
 def run_web_server():
     port = int(os.environ.get("PORT", 10000))
@@ -38,7 +38,6 @@ def run_web_server():
     print(f"Web server running on port {port}")
     server.serve_forever()
 
-# Start web server in background thread
 web_thread = Thread(target=run_web_server, daemon=True)
 web_thread.start()
 print("Web server thread started")
@@ -51,33 +50,31 @@ if sys.version_info[0] == 3 and sys.version_info[1] >= 10:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
-# =============== CONFIG - ENVIRONMENT VARIABLES ================
+# =============== CONFIG ================
 API_ID = int(os.environ.get("API_ID", 39035274))
 API_HASH = os.environ.get("API_HASH", "6a0b24e16c4bea2bbc975b7dbb0c1e64")
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "8931408596:AAH-7SkyKtohZqKPE8ixyEfCV04h_rXagc8")
 OWNER_ID = int(os.environ.get("OWNER_ID", 8722144519))
 
-# =============== BOT INIT ================
-app = Client(
-    "spam_bot",
-    api_id=API_ID,
-    api_hash=API_HASH,
-    bot_token=BOT_TOKEN
-)
+app = Client("spam_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
-# =============== SPAM ACTIVE TRACKER ================
 spam_active = {}
 
-# =============== CHECK OWNER ONLY ================
-async def is_owner(user_id):
-    return user_id == OWNER_ID
-
-# =============== GET TARGET MENTION ================
+# =============== GET CLICKABLE MENTION ================
 async def get_target_mention(client, target_input, message):
+    """
+    Returns clickable mention for ANY user - even without username
+    """
+    target_user = None
+    
+    # Case 1: Reply to a message
     if message.reply_to_message:
         target_user = message.reply_to_message.from_user
-        return target_user.mention, target_user.id
+        if target_user:
+            # Pyrogram's .mention creates clickable link
+            return target_user.mention, target_user.id
     
+    # Case 2: @username mention
     if target_input and target_input.startswith("@"):
         try:
             target_user = await client.get_users(target_input)
@@ -85,6 +82,7 @@ async def get_target_mention(client, target_input, message):
         except:
             return target_input, None
     
+    # Case 3: Direct user ID
     if target_input and target_input.isdigit():
         try:
             target_user = await client.get_users(int(target_input))
@@ -94,13 +92,20 @@ async def get_target_mention(client, target_input, message):
     
     return None, None
 
-# =============== SPAM FUNCTION - WITH TAG ================
+# =============== GET BOT MENTION ================
+async def get_bot_mention():
+    """Returns bot's own clickable mention"""
+    me = await app.get_me()
+    return me.mention
+
+# =============== SPAM LOOP WITH CLICKABLE MENTION ================
 async def spam_loop(client, chat_id, target_mention, spam_message, count):
     global spam_active
     
     spam_active[chat_id] = True
     sent = 0
     
+    # Final message with clickable mention
     final_message = f"{target_mention} {spam_message}"
     
     try:
@@ -110,7 +115,7 @@ async def spam_loop(client, chat_id, target_mention, spam_message, count):
                 f"UNLIMITED SPAM\n\n"
                 f"Target: {target_mention}\n"
                 f"Message: `{spam_message[:50]}`\n"
-                f"Stop: `.stopspam`\n\n"
+                f"Stop: .stopspam\n\n"
                 f"Spam started!"
             )
             
@@ -173,7 +178,8 @@ async def spam_command(client, message: Message):
             f".spam @user 50 Hello\n"
             f".spam @user unlimited MKC\n"
             f"Reply to user -> .spam 50 hello\n\n"
-            f"Stop: `.stopspam`"
+            f"Note: Mention will be CLICKABLE even without username!\n\n"
+            f"Stop: .stopspam"
         )
         return
     
@@ -216,6 +222,7 @@ async def spam_command(client, message: Message):
     if str(count).lower() in ["unlimited", "inf", "infinite", "0"]:
         count = -1
     
+    # Delete command message
     try:
         await message.delete()
     except:
@@ -245,17 +252,33 @@ async def stop_spam(client, message: Message):
     
     await client.send_message(chat_id, "SPAM STOPPED!")
 
-# =============== ALIVE CHECK ================
+# =============== TEST MENTION COMMAND ================
+@app.on_message(filters.command("testmention", prefixes="."))
+async def test_mention(client, message: Message):
+    """Test command to check if mention is clickable"""
+    if message.from_user.id != OWNER_ID:
+        return
+    
+    if message.reply_to_message:
+        target = message.reply_to_message.from_user
+        await message.reply_text(f"Testing clickable mention: {target.mention}\n\nClick on the name above! It should open profile.")
+    else:
+        await message.reply_text("Reply to any user with .testmention to check if mention is clickable")
+
+# =============== ALIVE ================
 @app.on_message(filters.command("alive", prefixes="."))
 async def alive_command(client, message: Message):
     if message.from_user.id != OWNER_ID:
         return
     
+    bot_mention = await get_bot_mention()
     await message.reply_text(
         f"BOT ONLINE\n"
         f"Owner: `{OWNER_ID}`\n"
+        f"Bot: {bot_mention}\n"
         f"Status: READY\n"
-        f"Command: `.spam @user count message`"
+        f"Command: .spam @user count message\n\n"
+        f"Note: Mentions are CLICKABLE - even without username!"
     )
 
 # =============== START ================
@@ -265,12 +288,17 @@ async def start_command(client, message: Message):
         await message.reply_text(f"Only owner! ID: `{OWNER_ID}`")
         return
     
+    bot_mention = await get_bot_mention()
     await message.reply_text(
         f"SPAM BOT\n\n"
         f"Owner: `{OWNER_ID}`\n"
-        f"`.spam @user 50 message`\n"
-        f"`.stopspam`\n"
-        f"Every message will TAG the target!"
+        f"Bot: {bot_mention}\n\n"
+        f"Commands:\n"
+        f".spam @user 50 message\n"
+        f".stopspam\n"
+        f".testmention (reply to check clickable mention)\n\n"
+        f"NOTE: Har message mein TARGET CLICKABLE hoga!\n"
+        f"Bina username ke bhi profile open hogi!"
     )
 
 # =============== MAIN ================
@@ -280,7 +308,7 @@ if __name__ == "__main__":
     print("=" * 50)
     print(f"Owner ID: {OWNER_ID}")
     print(f"Mode: ONLY OWNER CAN USE")
-    print(f"Feature: TAG with every message")
+    print(f"Feature: CLICKABLE MENTIONS (even without username)")
     print(f"Port: {os.environ.get('PORT', 10000)}")
     print("=" * 50)
     
