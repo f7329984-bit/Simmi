@@ -12,20 +12,22 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
-        self.send_header('Content-type', 'text/html')
+        self.send_header('Content-type', 'text/html; charset=utf-8')
         self.end_headers()
-        self.wfile.write(b"""
+        # Simple HTML without special characters
+        html = """
         <!DOCTYPE html>
         <html>
         <head><title>Spam Bot</title></head>
         <body style="background: #1a1a2e; color: white; text-align: center; font-family: Arial;">
-            <h1>🔥 SPAM BOT IS RUNNING 🔥</h1>
+            <h1>SPAM BOT IS RUNNING</h1>
             <p>Bot is active and ready to spam!</p>
             <p>Owner ID: 8722144519</p>
-            <p>Status: 🟢 ONLINE</p>
+            <p>Status: ONLINE</p>
         </body>
         </html>
-        """)
+        """
+        self.wfile.write(html.encode('utf-8'))
     
     def log_message(self, format, *args):
         pass  # Disable logging
@@ -33,13 +35,13 @@ class Handler(BaseHTTPRequestHandler):
 def run_web_server():
     port = int(os.environ.get("PORT", 10000))
     server = HTTPServer(("0.0.0.0", port), Handler)
-    print(f"🌐 Web server running on port {port}")
+    print(f"Web server running on port {port}")
     server.serve_forever()
 
 # Start web server in background thread
 web_thread = Thread(target=run_web_server, daemon=True)
 web_thread.start()
-print("✅ Web server thread started")
+print("Web server thread started")
 
 # =============== FIX FOR EVENT LOOP ERROR ================
 if sys.version_info[0] == 3 and sys.version_info[1] >= 10:
@@ -105,14 +107,11 @@ async def spam_loop(client, chat_id, target_mention, spam_message, count):
         if count == -1:
             await client.send_message(
                 chat_id,
-                f"╔══════════════════════╗\n"
-                f"   🔥 **UNLIMITED SPAM** 🔥\n"
-                f"╚══════════════════════╝\n\n"
-                f"🎯 **Target:** {target_mention}\n"
-                f"📝 **Message:** `{spam_message[:50]}`\n"
-                f"♾️ **Mode:** UNLIMITED\n"
-                f"🛑 **Stop:** `.stopspam`\n\n"
-                f"✅ Spam shuru ho gaya!"
+                f"UNLIMITED SPAM\n\n"
+                f"Target: {target_mention}\n"
+                f"Message: `{spam_message[:50]}`\n"
+                f"Stop: `.stopspam`\n\n"
+                f"Spam started!"
             )
             
             while spam_active.get(chat_id, False):
@@ -120,7 +119,7 @@ async def spam_loop(client, chat_id, target_mention, spam_message, count):
                     await client.send_message(chat_id, final_message)
                     sent += 1
                     if sent % 100 == 0:
-                        print(f"📊 Sent {sent} messages")
+                        print(f"Sent {sent} messages")
                 except Exception as e:
                     if "flood" in str(e).lower():
                         await asyncio.sleep(1)
@@ -129,7 +128,7 @@ async def spam_loop(client, chat_id, target_mention, spam_message, count):
         else:
             status_msg = await client.send_message(
                 chat_id,
-                f"⏳ Spamming `{count}` messages to {target_mention}..."
+                f"Spamming {count} messages to {target_mention}..."
             )
             
             for i in range(count):
@@ -143,9 +142,9 @@ async def spam_loop(client, chat_id, target_mention, spam_message, count):
                 await asyncio.sleep(0)
             
             await status_msg.edit_text(
-                f"✅ **Spam Complete!**\n"
-                f"📊 Sent: `{sent}/{count}` messages\n"
-                f"🎯 Target: {target_mention}"
+                f"Spam Complete!\n"
+                f"Sent: {sent}/{count} messages\n"
+                f"Target: {target_mention}"
             )
     except Exception as e:
         print(f"Spam error: {e}")
@@ -156,25 +155,25 @@ async def spam_loop(client, chat_id, target_mention, spam_message, count):
 @app.on_message(filters.command("spam", prefixes=".") & filters.group)
 async def spam_command(client, message: Message):
     if message.from_user.id != OWNER_ID:
-        await message.reply_text(f"❌ Sirf owner! ID: `{OWNER_ID}`")
+        await message.reply_text(f"Only owner! ID: `{OWNER_ID}`")
         return
     
     chat_id = message.chat.id
     
     if spam_active.get(chat_id, False):
-        await message.reply_text("❌ Spam already active! Use `.stopspam` first.")
+        await message.reply_text("Spam already active! Use `.stopspam` first.")
         return
     
     parts = message.text.split(maxsplit=3)
     
     if len(parts) < 2 and not message.reply_to_message:
         await message.reply_text(
-            f"⚠️ **Usage:** `.spam @username count message`\n\n"
-            f"📝 **Examples:**\n"
-            f"• `.spam @user 50 Hello`\n"
-            f"• `.spam @user unlimited MKC`\n"
-            f"• Reply to user → `.spam 50 hello`\n\n"
-            f"🛑 **Stop:** `.stopspam`"
+            f"Usage: `.spam @username count message`\n\n"
+            f"Examples:\n"
+            f".spam @user 50 Hello\n"
+            f".spam @user unlimited MKC\n"
+            f"Reply to user -> .spam 50 hello\n\n"
+            f"Stop: `.stopspam`"
         )
         return
     
@@ -188,11 +187,11 @@ async def spam_command(client, message: Message):
         target_mention, _ = await get_target_mention(client, None, message)
         arg_index = 1
     else:
-        await message.reply_text("❌ Please tag a user or reply to a message!")
+        await message.reply_text("Please tag a user or reply to a message!")
         return
     
     if not target_mention:
-        await message.reply_text("❌ Invalid user!")
+        await message.reply_text("Invalid user!")
         return
     
     count = -1
@@ -204,14 +203,14 @@ async def spam_command(client, message: Message):
             if len(parts) > arg_index + 1:
                 spam_msg = parts[arg_index + 1]
             else:
-                await message.reply_text("❌ Message likhna bhi zaroori hai!")
+                await message.reply_text("Message likhna bhi zaroori hai!")
                 return
         except ValueError:
             spam_msg = parts[arg_index]
             count = -1
     
     if not spam_msg:
-        await message.reply_text("❌ Kuch message likho!")
+        await message.reply_text("Kuch message likho!")
         return
     
     if str(count).lower() in ["unlimited", "inf", "infinite", "0"]:
@@ -228,13 +227,13 @@ async def spam_command(client, message: Message):
 @app.on_message(filters.command("stopspam", prefixes=".") & filters.group)
 async def stop_spam(client, message: Message):
     if message.from_user.id != OWNER_ID:
-        await message.reply_text("❌ Sirf owner stop kar sakta hai!")
+        await message.reply_text("Only owner can stop spam!")
         return
     
     chat_id = message.chat.id
     
     if not spam_active.get(chat_id, False):
-        await message.reply_text("❌ Koi active spam nahi hai!")
+        await message.reply_text("No active spam!")
         return
     
     spam_active[chat_id] = False
@@ -244,7 +243,7 @@ async def stop_spam(client, message: Message):
     except:
         pass
     
-    await client.send_message(chat_id, "🛑 **SPAM STOPPED!**")
+    await client.send_message(chat_id, "SPAM STOPPED!")
 
 # =============== ALIVE CHECK ================
 @app.on_message(filters.command("alive", prefixes="."))
@@ -253,36 +252,36 @@ async def alive_command(client, message: Message):
         return
     
     await message.reply_text(
-        f"✅ **BOT ONLINE**\n"
-        f"👑 Owner: `{OWNER_ID}`\n"
-        f"⚡ Status: READY\n"
-        f"💡 `.spam @user count message`"
+        f"BOT ONLINE\n"
+        f"Owner: `{OWNER_ID}`\n"
+        f"Status: READY\n"
+        f"Command: `.spam @user count message`"
     )
 
 # =============== START ================
 @app.on_message(filters.command("start", prefixes="."))
 async def start_command(client, message: Message):
     if message.from_user.id != OWNER_ID:
-        await message.reply_text(f"❌ Sirf owner! ID: `{OWNER_ID}`")
+        await message.reply_text(f"Only owner! ID: `{OWNER_ID}`")
         return
     
     await message.reply_text(
-        f"🔥 **SPAM BOT** 🔥\n\n"
-        f"👑 Owner: `{OWNER_ID}`\n"
-        f"📝 `.spam @user 50 message`\n"
-        f"🛑 `.stopspam`\n"
-        f"💡 Har message mein TAG hoga!"
+        f"SPAM BOT\n\n"
+        f"Owner: `{OWNER_ID}`\n"
+        f"`.spam @user 50 message`\n"
+        f"`.stopspam`\n"
+        f"Every message will TAG the target!"
     )
 
 # =============== MAIN ================
 if __name__ == "__main__":
     print("=" * 50)
-    print("🔥 SPAM BOT STARTED 🔥")
+    print("SPAM BOT STARTED")
     print("=" * 50)
-    print(f"👑 Owner ID: {OWNER_ID}")
-    print(f"⚡ Mode: ONLY OWNER CAN USE")
-    print(f"💡 Feature: TAG with every message")
-    print(f"🌐 Port: {os.environ.get('PORT', 10000)}")
+    print(f"Owner ID: {OWNER_ID}")
+    print(f"Mode: ONLY OWNER CAN USE")
+    print(f"Feature: TAG with every message")
+    print(f"Port: {os.environ.get('PORT', 10000)}")
     print("=" * 50)
     
     app.run()
